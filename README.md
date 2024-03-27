@@ -54,5 +54,3 @@ For questions, please contact [grab@tue.mpg.de](mailto:grip@tue.mpg.de).
 For commercial licensing (and all related questions for business applications), please contact [ps-licensing@tue.mpg.de](mailto:ps-licensing@tue.mpg.de).
 
 
-
-![footer](images/sequence.jpg)
