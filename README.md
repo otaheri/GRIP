@@ -22,12 +22,12 @@ Check out the YouTube video below for more details.
 ## Citation
 
 ```
-@inproceedings{GRAB:2020,
-  title = {{GRAB}: A Dataset of Whole-Body Human Grasping of Objects},
-  author = {Taheri, Omid and Ghorbani, Nima and Black, Michael J. and Tzionas, Dimitrios},
-  booktitle = {European Conference on Computer Vision (ECCV)},
-  year = {2020},
-  url = {https://grab.is.tue.mpg.de}
+@inproceedings{taheri2024grip,
+  title  = {{GRIP}: Generating Interaction Poses Using Latent Consistency and Spatial Cues},
+  author = {Omid Taheri and Yi Zhou and Dimitrios Tzionas and Yang Zhou and Duygu Ceylan and Soren Pirk and Michael J. Black},
+  booktitle = {International Conference on 3D Vision ({3DV})},
+  year = {2024},
+  url = {https://grip.is.tue.mpg.de}
 }
 ```
 
