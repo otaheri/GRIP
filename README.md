@@ -49,7 +49,7 @@ this agreement will automatically terminate your rights under this [LICENSE](./L
 ## Contact
 The code of this repository was implemented by [Omid Taheri](https://otaheri.github.io/).
 
-For questions, please contact [grab@tue.mpg.de](mailto:grip@tue.mpg.de).
+For questions, please contact [grip@tue.mpg.de](mailto:grip@tue.mpg.de).
 
 For commercial licensing (and all related questions for business applications), please contact [ps-licensing@tue.mpg.de](mailto:ps-licensing@tue.mpg.de).
 
