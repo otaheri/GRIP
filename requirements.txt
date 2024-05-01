@@ -12,7 +12,6 @@ omegaconf==2.2.2
 pandas==1.4.3
 Pillow==9.1.1
 PyOpenGL==3.1.6
-pytorch3d==0.6.2
 
 
 scenepic==1.0.8
@@ -22,6 +21,8 @@ tensorboardX==2.5.1
 torch==1.11.0
 torchgeometry==0.1.2
 torchvision==0.12.0
+pytorch3d==0.6.2
+
 
 git+git://github.com/otaheri/chamfer_distance.git
 git+git://github.com/otaheri/MANO.git
