@@ -150,8 +150,8 @@ This work was partially supported by Adobe Research (during the first author's i
 
 We thank:
 
-Tsvetelina Alexiadis and Alpár Cseke for the Mechanical Turk experiments.
-Benjamin Pellkofer for website design, IT, and web support.
+- Tsvetelina Alexiadis and Alpár Cseke for the Mechanical Turk experiments.
+- Benjamin Pellkofer for website design, IT, and web support.
 
 
 ## Contact
