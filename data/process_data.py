@@ -120,19 +120,18 @@ class MNetDataSet(object):
         bps_path = makepath(os.path.join(cfg.out_path, 'bps.pt'), isfile=True)
         bps_orig_path = f'{self.cwd}/../configs/bps.pt'
 
-        gnet_path = self.out_path.replace('MNet_data', 'GNet_data')
-        gnet_bps_path = os.path.join(gnet_path, 'bps.pt')
-
         self.bps_torch = bps_torch()
 
         R_bps = torch.tensor(
             [[1., 0., 0.],
              [0., 0., -1.],
              [0., 1., 0.]]).reshape(1, 3, 3).to(device)
-        if os.path.exists(bps_path+'1'):
+        if os.path.exists(bps_path):
             self.bps = torch.load(bps_path)
             self.logger(f'loading bps from {bps_path}')
-
+        elif os.path.exists(bps_orig_path):
+            self.bps = torch.load(bps_orig_path)
+            self.logger(f'loading bps from {bps_orig_path}')
         else:
             self.bps_obj = sample_sphere_uniform(n_points=cfg.n_obj, radius=cfg.r_obj).reshape(1, -1, 3)
             self.bps_sbj = rotate(
