@@ -1,5 +1,5 @@
 # GRIP: Generating Interaction Poses Using Spatial Cues and Latent Consistency
-## Coming Soon
+## Coming Soon - SOS- Still Under Development
 
 
 
