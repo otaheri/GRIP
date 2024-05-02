@@ -37,9 +37,21 @@ This repository Contains:
 - Code for generating results on the test set split of the data
 - Tools to visualize and save generated sequences from GRIP
 
+## Requirements
+
+The models are built in PyTorch 1.7.1 and tested on Ubuntu 20.04 (Python3.8, CUDA11.0).
+
+Some of the requirements are:
+
+* Python ==3.8
+* [Pytorch==1.7.1](https://pytorch.org/get-started/locally/) 
+* [SMPL-X](https://github.com/vchoutas/smplx) 
+* [bps_torch](https://github.com/otaheri/bps_torch) 
+* [psbody-mesh](https://github.com/MPI-IS/mesh)
+
 ## Installation
 
-To install the repo please follow the next steps:
+To install the requirements please follow the next steps:
 
 - Clone this repository and install the requirements: 
     ```Shell
@@ -49,6 +61,8 @@ To install the repo please follow the next steps:
     cd GRIP
     pip install -r requirements.txt
     ```
+If there are issues with installing the [psbody-mesh](https://github.com/MPI-IS/mesh) package, please follow the instructions on the original repo to install it from the source.
+  
 
 ## Getting started
 In order to use GRIP please follow the steps below:
