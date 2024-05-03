@@ -19,7 +19,6 @@ import shutil
 import sys
 
 from zmq import device
-# sys.path.append('/is/ps2/otaheri/code_repos/GRIP_adobe/project/')
 sys.path.append('.')
 sys.path.append('..')
 import json
@@ -36,7 +35,6 @@ from tools.train_tools import EarlyStopping
 
 from torch import nn, optim
 
-from pytorch3d.structures import Meshes
 from tensorboardX import SummaryWriter
 
 import glob, time

@@ -251,7 +251,7 @@ class MNetDataSet(object):
 
             }
 
-            for seq_i, sequence in enumerate(tqdm(self.split_seqs[split][:3])):
+            for seq_i, sequence in enumerate(tqdm(self.split_seqs[split])):
 
                 seq_data = parse_npz(sequence)
 
