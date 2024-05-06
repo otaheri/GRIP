@@ -118,7 +118,7 @@ class MNetDataSet(object):
         self.sbj_info = {}
 
         bps_path = makepath(os.path.join(cfg.out_path, 'bps.pt'), isfile=True)
-        bps_orig_path = f'{self.cwd}/../configs/bps.pt'
+        bps_orig_path = f'{self.cwd}/../data/bps.pt'
 
         self.bps_torch = bps_torch()
 
