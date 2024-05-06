@@ -376,7 +376,6 @@ class Trainer:
         ##############################################
 
         i = 1 # current frame
-        vox_threshold = 0.005
         nf = self.T
 
         bs = x['transl'].shape[0]

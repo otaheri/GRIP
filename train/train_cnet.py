@@ -324,9 +324,6 @@ class Trainer:
         self.data_info[ds_name]['frame_names'] = ds_test.frame_names
         self.data_info[ds_name]['frame_sbjs'] = ds_test.frame_sbjs
         self.data_info[ds_name]['frame_objs'] = ds_test.frame_objs
-        # self.data_info['body_vtmp'] = ds_test.sbj_vtemp
-        # self.data_info['body_betas'] = ds_test.sbj_betas
-        # self.data_info['obj_verts'] = ds_test.obj_verts
         self.data_info['obj_info'] = ds_test.obj_info
         self.data_info['sbj_info'] = ds_test.sbj_info
         self.ds_test = build_dataloader(ds_test, split='test', cfg=self.cfg.datasets, batch_size=self.cfg.datasets.batch_size_test)
@@ -344,7 +341,6 @@ class Trainer:
             self.data_info['body_vtmp'] = ds_train.sbj_vtemp
             self.data_info['body_betas'] = ds_train.sbj_betas
             self.data_info['obj_verts'] = ds_train.obj_verts
-            # self.ds_train = build_dataloader(ds_train, split=ds_name, cfg=self.cfg.datasets, batch_size=self.cfg.datasets.batch_size)
             self.ds_train = build_dataloader(ds_train, split=ds_name, cfg=self.cfg.datasets, batch_size=self.cfg.datasets.batch_size)
 
         ds_name = 'val'
@@ -378,12 +374,7 @@ class Trainer:
 
     def forward(self, x):
 
-        ##############################################
-        # batch = {k:v.clone() for k,v in x.items()}
-        # x     = {k:v[:,-1].clone() for k,v in x.items()}
-
         i = 1 # current frame
-        vox_threshold = 0.005
         nf = self.T
 
         bs = x['transl'].shape[0]
@@ -396,45 +387,27 @@ class Trainer:
 
         fullpose[:,i:i+nf,25:] = h_pose
 
-        if not 'no_pose' in self.cfg.expr_ID:
-            enc_x['fullpose'] = fullpose[:,i:i+nf,1:25,:2,:] # 1: --> ignore the global orientation
-        # enc_x['transl'] = x['transl']
+        enc_x['fullpose'] = fullpose[:,i:i+nf,1:25,:2,:] # 1: --> ignore the global orientation
 
         enc_x['betas'] = x['betas'][:,i]
 
 
-
-
         if self.use_exp != 0 and self.use_exp != -1:
-            # enc_x['verts2obj_exp'] = torch.exp(-self.use_exp * x['verts2obj'])
-            if not 'no_proximity_sensor' in self.cfg.expr_ID:
-                enc_x['rh2obj_exp'] = torch.exp(-self.use_exp * x['rh2obj_h'][:,i:i+nf].norm(dim=-1))
-                enc_x['lh2obj_exp'] = torch.exp(-self.use_exp * x['lh2obj_h'][:,i:i+nf].norm(dim=-1))
+            enc_x['rh2obj_exp'] = torch.exp(-self.use_exp * x['rh2obj_h'][:,i:i+nf].norm(dim=-1))
+            enc_x['lh2obj_exp'] = torch.exp(-self.use_exp * x['lh2obj_h'][:,i:i+nf].norm(dim=-1))
 
-            # enc_x['bps_obj'] = x['bps_obj_glob'][:,i]
-            if not 'no_hand_sensor' in self.cfg.expr_ID:
-                enc_x['bps_obj_rh'] = torch.exp(-0.1*self.use_exp * x['bps_obj_rh'][:,i:i+nf])
-                enc_x['bps_obj_lh'] = torch.exp(-0.1*self.use_exp * x['bps_obj_lh'][:,i:i+nf])
             
-            if 'voxelgrid' in self.cfg.expr_ID:
-                enc_x['bps_obj_rh'] = (x['bps_obj_rh'][:,i:i+nf] < vox_threshold).to(torch.float32)
-                enc_x['bps_obj_lh'] = (x['bps_obj_lh'][:,i:i+nf] < vox_threshold).to(torch.float32)
+            enc_x['bps_obj_rh'] = torch.exp(-0.1*self.use_exp * x['bps_obj_rh'][:,i:i+nf])
+            enc_x['bps_obj_lh'] = torch.exp(-0.1*self.use_exp * x['bps_obj_lh'][:,i:i+nf])
 
         else:
-            # enc_x['verts2obj'] = x['verts2obj']
-            if not 'no_proximity_sensor' in self.cfg.expr_ID:
-                enc_x['rh2obj'] = x['rh2obj_h'][:,i:i+nf].norm(dim=-1)
-                enc_x['lh2obj'] = x['lh2obj_h'][:,i:i+nf].norm(dim=-1)
+            enc_x['rh2obj'] = x['rh2obj_h'][:,i:i+nf].norm(dim=-1)
+            enc_x['lh2obj'] = x['lh2obj_h'][:,i:i+nf].norm(dim=-1)
 
-            # enc_x['bps_obj'] = x['bps_obj_glob'][:,i]
-            if not 'no_hand_sensor' in self.cfg.expr_ID:
-                enc_x['bps_obj_rh'] = x['bps_obj_rh'][:,i:i+nf]
-                enc_x['bps_obj_lh'] = x['bps_obj_lh'][:,i:i+nf]
             
-            if 'voxelgrid' in self.cfg.expr_ID:
-                enc_x['bps_obj_rh'] = (x['bps_obj_rh'][:,i:i+nf] < vox_threshold).to(torch.float32)
-                enc_x['bps_obj_lh'] = (x['bps_obj_lh'][:,i:i+nf] < vox_threshold).to(torch.float32)
-
+            enc_x['bps_obj_rh'] = x['bps_obj_rh'][:,i:i+nf]
+            enc_x['bps_obj_lh'] = x['bps_obj_lh'][:,i:i+nf]
+            
  
         fu = self.fu
         
@@ -448,17 +421,10 @@ class Trainer:
         enc_x = torch.cat([v.reshape(bs, -1).to(self.device) for v in enc_x.values()], dim=1)
 
         net_results = self.network(enc_x)
-        # rh_pose = self.network(enc_x)
         h_pose = net_results['pose'].reshape(bs,nf,-1)
         int_field = net_results['int_field'].reshape(bs,nf,-1)
 
         h_pose_rotmat = d62rotmat(h_pose).reshape(bs,nf, -1, 3, 3)
-
-        #make global with respect to frame i
-        relative_pose = False
-        if relative_pose:
-            h_pose_rotmat_f = torch.matmul(h_pose_rotmat[:,1:], h_pose_rotmat[:,:1])
-            h_pose_rotmat[:,1:] = h_pose_rotmat_f
             
         pose = fullpose[:,i:i+nf].clone()
         pose[:,:,25:] = h_pose_rotmat
@@ -504,7 +470,6 @@ class Trainer:
         enc_x = torch.cat([v.reshape(bs, -1).to(self.device) for v in enc_x.values()], dim=1)
 
         net_results = self.network_ref(enc_x)
-        # rh_pose = self.network(enc_x)
         h_pose = net_results['pose']
         int_field = net_results['int_field']
 
@@ -622,9 +587,6 @@ class Trainer:
 
             new_batch_cont['rh2obj_gt'][females] = rh2obj_dist.clone().detach()
             new_batch_cont['lh2obj_gt'][females] = lh2obj_dist.clone().detach()
-            
-            # rh2obj_closest = rh2obj['closest'].reshape(-1, 778, 3)
-            # lh2obj_closest = lh2obj['closest'].reshape(-1, 778, 3)
 
             rh2obj_closest_ids = rh2obj['closest_ids']
             lh2obj_closest_ids = lh2obj['closest_ids']
@@ -661,9 +623,6 @@ class Trainer:
             new_batch_cont['rh2obj_gt'][males] = rh2obj_dist.clone().detach()
             new_batch_cont['lh2obj_gt'][males] = lh2obj_dist.clone().detach()
 
-            # rh2obj_closest = rh2obj['closest'].reshape(-1, 778, 3)
-            # lh2obj_closest = lh2obj['closest'].reshape(-1, 778, 3)
-
             rh2obj_closest_ids = rh2obj['closest_ids']
             lh2obj_closest_ids = lh2obj['closest_ids']
 
@@ -693,7 +652,6 @@ class Trainer:
             batch = {k: batch[k].to(self.device) for k in batch.keys()}
 
             self.optimizer.zero_grad()
-            # torch.autograd.set_detect_anomaly(True)
             output = self.forward(batch)
 
             loss_total, losses_dict, new_batch, new_batch_p = self.get_loss(batch, it, output)
@@ -772,7 +730,6 @@ class Trainer:
                 batch = {k: batch[k].to(self.device) for k in batch.keys()}
 
                 self.optimizer.zero_grad()
-                # torch.autograd.set_detect_anomaly(True)
                 
                 output = self.forward(batch)
 
@@ -785,7 +742,6 @@ class Trainer:
 
                     self.optimizer.zero_grad()
 
-                    # new_batch_cont = self.prepare_data(batch)
                     output_ref = self.forward_ref(new_batch)
                     output_ref_p = self.forward_ref(new_batch_p)
 
@@ -853,14 +809,10 @@ class Trainer:
             f_verts_gt = f_output_gt.vertices
             f_joints_gt = f_output_gt.joints
 
-            s = time.time()
             f_params = {k: v[females].clone().detach() for k, v in bparams.items()}
             f_output = self.female_model(**f_params)
             f_verts = f_output.vertices
             f_joints = f_output.joints
-            e = time.time()
-            # print('time for smplx female forward pass: ', e-s)
-
 
             if self.fit_ref:
 
@@ -890,14 +842,10 @@ class Trainer:
             m_verts_gt = m_output_gt.vertices
             m_joints_gt = m_output_gt.joints
 
-
-            s = time.time()
             m_params = {k: v[males].clone() for k, v in bparams.items()}
             m_output = self.male_model(**m_params)
             m_verts = m_output.vertices
             m_joints = m_output.joints
-            e = time.time()
-            # print('time for smplx male forward pass: ', e-s)
 
             if self.fit_ref:
 
@@ -932,7 +880,6 @@ class Trainer:
 
 
         rh2obj_gt = batch['rh2obj_gt'][:,cur_id:cur_id+T].norm(dim=-1).reshape(B*T, -1, 1)
-        # rh2obj_w = torch.exp(-self.use_exp*rh2obj_gt)
         rh2obj_w = torch.ones_like(rh2obj_gt)
 
         int_fields = results['int_field'].reshape(B*T, -1)
@@ -946,10 +893,8 @@ class Trainer:
             losses_w['rh2obj_inf'] = self.vertex_loss_weight*losses['rh2obj_inf']
 
         lh2obj_gt = batch['lh2obj_gt'][:,cur_id:cur_id+T].norm(dim=-1).reshape(B*T, -1, 1)
-        # lh2obj_w = torch.exp(-self.use_exp*lh2obj_gt)
         lh2obj_w = torch.ones_like(lh2obj_gt)
 
-        # int_field = results['int_field'][:,99:].reshape(lh2obj_gt.shape)
         int_field = int_fields[:,99:].reshape(lh2obj_gt.shape)
 
 
@@ -1013,29 +958,16 @@ class Trainer:
             losses['lh2obj'] = 0
             obj_verts_gt = batch['verts_obj'][:,cur_id:cur_id+T].reshape(B*T,-1, 3)
             if FN>0:
-                # rh2obj_gt = self.bps_torch.encode(x = batch['verts_obj'][:,-1][females],
-                #                                 feature_type=[bps_type],
-                #                                 custom_basis=f_verts_gt[:,self.rhand_idx])[bps_type]
-
-                s = time.time()
                 rh2obj = self.bps_torch.encode(x = obj_verts_gt[females],
                                                 feature_type=[bps_type],
                                                 custom_basis=f_verts[:,self.rhand_idx])[bps_type]
-                                                # custom_basis=f_verts[:,self.verts_ids[self.rh_ids_sampled]])[bps_type]
                 
                 lh2obj = self.bps_torch.encode(x = obj_verts_gt[females],
                                                 feature_type=[bps_type],
                                                 custom_basis=f_verts[:,self.lhand_idx])[bps_type]
-                                                # custom_basis=f_verts[:,self.verts_ids[self.lh_ids_sampled]])[bps_type]
-                e = time.time()
-                t_f = e-s
-                # print('time for female bps: ', t_f)
                 
                 losses['rh2obj'] += self.LossL1(torch.exp(-self.use_exp*rh2obj[:, self.rh_ids_sampled1]),torch.exp(-self.use_exp*rh2obj_gt[females][...,0]))
-                # losses['rh2obj'] += self.LossL1(torch.exp(-self.use_exp*rh2obj),torch.exp(-self.use_exp*rh2obj_gt[females][...,0]))
-
                 losses['lh2obj'] += self.LossL1(torch.exp(-self.use_exp*lh2obj[:, self.lh_ids_sampled1]),torch.exp(-self.use_exp*lh2obj_gt[females][...,0]))
-                # losses['lh2obj'] += self.LossL1(torch.exp(-self.use_exp*lh2obj),torch.exp(-self.use_exp*lh2obj_gt[females][...,0]))
 
                 if self.fit_ref:
 
@@ -1055,10 +987,7 @@ class Trainer:
                     new_batch_p['rh2obj'][females] = rh2obj_p.clone().detach()
             
             if MN>0:
-                # rh2obj_gt = self.bps_torch.encode(x = batch['verts_obj'][:,-1][males],
-                #                                 feature_type=[bps_type],
-                #                                 custom_basis=m_verts_gt[:,self.rhand_idx])[bps_type]
-                s = time.time()
+
                 rh2obj = self.bps_torch.encode(x = obj_verts_gt[males],
                                 feature_type=[bps_type],
                                 custom_basis=m_verts[:,self.rhand_idx])[bps_type]
@@ -1068,14 +997,9 @@ class Trainer:
                                                 feature_type=[bps_type],
                                                 custom_basis=m_verts[:,self.lhand_idx])[bps_type]
                                                 # custom_basis=m_verts[:,self.verts_ids[self.lh_ids_sampled]])[bps_type]
-                e = time.time()
-                t_m = e-s
-                # print('time for male bps: ', t_m)
                 
                 losses['rh2obj'] += self.LossL1(torch.exp(-self.use_exp*rh2obj[:, self.rh_ids_sampled1]),torch.exp(-self.use_exp*rh2obj_gt[males][...,0]))
-                # losses['rh2obj'] += self.LossL1(torch.exp(-self.use_exp*rh2obj),torch.exp(-self.use_exp*rh2obj_gt[males][...,0]))
                 losses['lh2obj'] += self.LossL1(torch.exp(-self.use_exp*lh2obj[:, self.lh_ids_sampled1]),torch.exp(-self.use_exp*lh2obj_gt[males][...,0]))
-                # losses['lh2obj'] += self.LossL1(torch.exp(-self.use_exp*lh2obj),torch.exp(-self.use_exp*lh2obj_gt[males][...,0]))
 
                 if self.fit_ref:
                     new_batch['lh2obj'][males] = lh2obj.clone().detach()
@@ -1114,11 +1038,9 @@ class Trainer:
 
             loss_v2v = torch.cat(loss_v2v, dim=0).mean(dim=-1).sum()
 
-        # loss_total = torch.stack(list(losses.values())).sum()
         loss_total = torch.stack(list(losses_w.values())).sum()
         losses['loss_total'] = loss_total
         losses['loss_v2v'] = losses['lh_vertices'] + losses['rh_vertices']
-        # losses['loss_w'] = losses_w
 
         if eval_test:
             losses['loss_v2v'] = loss_v2v
@@ -1212,107 +1134,6 @@ class Trainer:
 
         return loss_total, losses, new_batch, new_batch_p
 
-    def get_loss_(self, batch, batch_idx, results):
-
-        cur_id = 1
-
-        bparams = results['body_params']
-
-        new_batch = {k:v.clone().detach() for k,v in bparams.items()}
-        new_batch['betas'] = batch['betas'][:,cur_id].clone()
-
-        genders = batch['gender'][:,cur_id]
-        males = genders == 1
-        females = ~males
-
-        B = batch['transl_obj'].shape[0]
-        v_template = batch['sbj_vtemp'][:,cur_id]
-
-        FN = sum(females)
-        MN = sum(males)
-
-        params_gt = parms_6D2full(batch['fullpose_rotmat'][:,cur_id],
-                                  batch['transl'][:,cur_id],
-                                  d62rot=False)
-
-        losses = {}
-        losses_w = {}
-
-        rh2obj_gt = batch['rh2obj_gt'][:,cur_id]
-
-
-        lh2obj_gt = batch['lh2obj_gt'][:,cur_id]
-
-
-        rh2obj_gt = batch['rh2obj_gt'][:,cur_id]
-        lh2obj_gt = batch['lh2obj_gt'][:,cur_id]
-
-        new_batch['lh2obj'] = torch.zeros([B, 778]).to(lh2obj_gt.device)
-        new_batch['rh2obj'] = torch.zeros([B, 778]).to(rh2obj_gt.device)
-
-        bps_type = 'dists'
-
-        if FN > 0:
-            
-            self.female_model.v_template = v_template[females].clone()
-
-            f_params_gt = {k: v[females].clone().detach() for k, v in params_gt.items()}
-            f_output_gt = self.female_model(**f_params_gt)
-            f_verts_gt = f_output_gt.vertices
-
-            f_params = {k: v[females].clone().detach() for k, v in bparams.items()}
-            f_output = self.female_model(**f_params)
-            f_verts = f_output.vertices
-
-            new_batch['f_verts_gt'] = f_verts_gt
-            new_batch['f_verts'] = f_verts.clone().detach()
-            new_batch['f_params_gt'] = f_params_gt
-
-            rh2obj = self.bps_torch.encode(x = batch['verts_obj'][:,cur_id][females],
-                                            feature_type=[bps_type],
-                                            custom_basis=f_verts[:,self.rhand_idx])[bps_type]
-                                            # custom_basis=f_verts[:,self.verts_ids[self.rh_ids_sampled]])[bps_type]
-            
-            lh2obj = self.bps_torch.encode(x = batch['verts_obj'][:,cur_id][females],
-                                            feature_type=[bps_type],
-                                            custom_basis=f_verts[:,self.lhand_idx])[bps_type]
-            
-            new_batch['lh2obj'][females] = lh2obj.clone().detach()
-            new_batch['rh2obj'][females] = rh2obj.clone().detach()
-
-        if MN > 0:
-            self.male_model.v_template = v_template[males].clone()
-
-            m_params_gt = {k: v[males].clone() for k, v in params_gt.items()}
-            m_output_gt = self.male_model(**m_params_gt)
-            m_verts_gt = m_output_gt.vertices
-
-            m_params = {k: v[males].clone() for k, v in bparams.items()}
-            m_output = self.male_model(**m_params)
-            m_verts = m_output.vertices
-
-            new_batch['m_verts_gt'] = m_verts_gt
-            new_batch['m_verts'] = m_verts.clone().detach()
-            new_batch['m_params_gt'] = m_params_gt
-
-            rh2obj = self.bps_torch.encode(x = batch['verts_obj'][:, cur_id][males],
-                                            feature_type=[bps_type],
-                                            custom_basis=m_verts[:,self.rhand_idx])[bps_type]
-
-            lh2obj = self.bps_torch.encode(x = batch['verts_obj'][:, cur_id][males],
-                                            feature_type=[bps_type],
-                                            custom_basis=m_verts[:,self.lhand_idx])[bps_type]
-            
-            new_batch['lh2obj'][males] = lh2obj.clone().detach()
-            new_batch['rh2obj'][males] = rh2obj.clone().detach()
-
-
-        loss_total = 0
-        losses['loss_total'] = 0
-        losses['loss_v2v'] = 0
-
-        return loss_total, losses, new_batch
-
     def get_loss_ref(self, batch, new_batch, batch_idx, results, eval_test=False):
 
         cur_id = 1
@@ -1375,12 +1196,10 @@ class Trainer:
 
 
         rh2obj = new_batch['rh2obj'].min(dim=-1)[0]
-        # rh2obj_w = torch.exp(-self.use_exp*rh2obj)
         rh2obj_w = self.sig(2*self.use_exp*(-rh2obj + 0.1)).reshape(-1,1,1)
 
 
         lh2obj = new_batch['lh2obj'].min(dim=-1)[0]
-        # lh2obj_w = torch.exp(-self.use_exp*lh2obj)
         lh2obj_w = self.sig(2*self.use_exp*(-lh2obj + 0.1)).reshape(-1,1,1)
 
 
@@ -1424,13 +1243,11 @@ class Trainer:
 
             loss_v2v = torch.cat(loss_v2v, dim=0).mean(dim=-1).sum()
 
-        # loss_total = torch.stack(list(losses.values())).sum()
         loss_total = torch.stack(list(losses_w.values())).sum()
         losses = {k+'_ref':v for k,v in losses.items()}
 
         losses['loss_total'] = loss_total
         losses['loss_v2v_ref'] = losses['lh_vertices_ref'] + losses['rh_vertices_ref']
-        # losses['loss_w'] = losses_w
 
         if eval_test:
             losses['loss_v2v'] = loss_v2v
@@ -1671,7 +1488,6 @@ def simplify_mesh(mesh=None, v=None, f=None, n_faces=None, vc=name_to_rgb['pink'
         mesh_tri.update_vertices(verts_mask.astype(np.bool_))
     if n_faces is not None:
         mesh_tri = mesh_tri.simplify_quadratic_decimation(n_faces)
-    # mesh_tri = mesh_tri.simplify_quadratic_decimation(n_faces)
     return Mesh(v=mesh_tri.vertices, f=mesh_tri.faces, vc=vc)
 
 def train():
@@ -1690,8 +1506,7 @@ def train():
     parser = argparse.ArgumentParser(description='cnet-Training')
 
     parser.add_argument('--work-dir',
-                        # required=True,
-                        default='/is/ps3/otaheri/GRIP/results/trained_models',
+                        required=True,
                         type=str,
                         help='The path to the folder to save results')
     
