@@ -396,45 +396,27 @@ class Trainer:
 
         fullpose[:,i:i+nf,25:] = h_pose
 
-        if not 'no_pose' in self.cfg.expr_ID:
-            enc_x['fullpose'] = fullpose[:,i:i+nf,1:25,:2,:] # 1: --> ignore the global orientation
-        # enc_x['transl'] = x['transl']
+        enc_x['fullpose'] = fullpose[:,i:i+nf,1:25,:2,:] # 1: --> ignore the global orientation
 
         enc_x['betas'] = x['betas'][:,i]
 
 
-
-
         if self.use_exp != 0 and self.use_exp != -1:
-            # enc_x['verts2obj_exp'] = torch.exp(-self.use_exp * x['verts2obj'])
-            if not 'no_proximity_sensor' in self.cfg.expr_ID:
-                enc_x['rh2obj_exp'] = torch.exp(-self.use_exp * x['rh2obj_h'][:,i:i+nf].norm(dim=-1))
-                enc_x['lh2obj_exp'] = torch.exp(-self.use_exp * x['lh2obj_h'][:,i:i+nf].norm(dim=-1))
+            enc_x['rh2obj_exp'] = torch.exp(-self.use_exp * x['rh2obj_h'][:,i:i+nf].norm(dim=-1))
+            enc_x['lh2obj_exp'] = torch.exp(-self.use_exp * x['lh2obj_h'][:,i:i+nf].norm(dim=-1))
 
-            # enc_x['bps_obj'] = x['bps_obj_glob'][:,i]
-            if not 'no_hand_sensor' in self.cfg.expr_ID:
-                enc_x['bps_obj_rh'] = torch.exp(-0.1*self.use_exp * x['bps_obj_rh'][:,i:i+nf])
-                enc_x['bps_obj_lh'] = torch.exp(-0.1*self.use_exp * x['bps_obj_lh'][:,i:i+nf])
             
-            if 'voxelgrid' in self.cfg.expr_ID:
-                enc_x['bps_obj_rh'] = (x['bps_obj_rh'][:,i:i+nf] < vox_threshold).to(torch.float32)
-                enc_x['bps_obj_lh'] = (x['bps_obj_lh'][:,i:i+nf] < vox_threshold).to(torch.float32)
+            enc_x['bps_obj_rh'] = torch.exp(-0.1*self.use_exp * x['bps_obj_rh'][:,i:i+nf])
+            enc_x['bps_obj_lh'] = torch.exp(-0.1*self.use_exp * x['bps_obj_lh'][:,i:i+nf])
 
         else:
-            # enc_x['verts2obj'] = x['verts2obj']
-            if not 'no_proximity_sensor' in self.cfg.expr_ID:
-                enc_x['rh2obj'] = x['rh2obj_h'][:,i:i+nf].norm(dim=-1)
-                enc_x['lh2obj'] = x['lh2obj_h'][:,i:i+nf].norm(dim=-1)
+            enc_x['rh2obj'] = x['rh2obj_h'][:,i:i+nf].norm(dim=-1)
+            enc_x['lh2obj'] = x['lh2obj_h'][:,i:i+nf].norm(dim=-1)
 
-            # enc_x['bps_obj'] = x['bps_obj_glob'][:,i]
-            if not 'no_hand_sensor' in self.cfg.expr_ID:
-                enc_x['bps_obj_rh'] = x['bps_obj_rh'][:,i:i+nf]
-                enc_x['bps_obj_lh'] = x['bps_obj_lh'][:,i:i+nf]
             
-            if 'voxelgrid' in self.cfg.expr_ID:
-                enc_x['bps_obj_rh'] = (x['bps_obj_rh'][:,i:i+nf] < vox_threshold).to(torch.float32)
-                enc_x['bps_obj_lh'] = (x['bps_obj_lh'][:,i:i+nf] < vox_threshold).to(torch.float32)
-
+            enc_x['bps_obj_rh'] = x['bps_obj_rh'][:,i:i+nf]
+            enc_x['bps_obj_lh'] = x['bps_obj_lh'][:,i:i+nf]
+            
  
         fu = self.fu
         
@@ -453,13 +435,7 @@ class Trainer:
         int_field = net_results['int_field'].reshape(bs,nf,-1)
 
         h_pose_rotmat = d62rotmat(h_pose).reshape(bs,nf, -1, 3, 3)
-
-        #make global with respect to frame i
-        relative_pose = False
-        if relative_pose:
-            h_pose_rotmat_f = torch.matmul(h_pose_rotmat[:,1:], h_pose_rotmat[:,:1])
-            h_pose_rotmat[:,1:] = h_pose_rotmat_f
-            
+   
         pose = fullpose[:,i:i+nf].clone()
         pose[:,:,25:] = h_pose_rotmat
 
@@ -1667,6 +1643,8 @@ class Trainer:
         self.fit_hnet = True
         self.fit_ref = True
 
+        # OmegaConf.save(self.cfg, f'configs/cfg_{self.cfg.expr_ID}.yaml')
+
         ds_name = 'test'
         data = self.ds_test
 
@@ -1789,8 +1767,6 @@ class Trainer:
             ##########################################
             net_output = self.forward(batch)
 
-            net_output = self.forward(batch)
-
             loss_total, losses_dict, new_batch, new_batch_p = self.get_loss(batch, 0, net_output)
 
             net_output_ref = self.forward_ref(new_batch)
@@ -1888,6 +1864,8 @@ class Trainer:
                     sp_anim.scene.link_canvas_events(*all_canvs[:3])
                     sp_anim.scene.link_canvas_events(*all_canvs[3:])
                     sp_anim.save_animation(html_path)
+                    print(f'Saving the animation to: ', html_path)
+
                     # sp_anim = sp_animation()
                     sp_anim = sp_animation(canvs=canvs,grid=grid, bg_color=bg_color)
 
@@ -2214,22 +2192,27 @@ def inference():
     parser = argparse.ArgumentParser(description='CNet-Inference')
 
     parser.add_argument('--work-dir',
-                        required=True,
+                        # required=True,
+                        default='/is/ps3/otaheri/GRIP/results/trained_models',
                         type=str,
                         help='The path to the folder to save results')
 
     parser.add_argument('--grab-path',
-                        required=True,
+                        # required=True,
+                        default='/ps/project/grab/cvpr21/GRAB',
                         type=str,
                         help='The path to the folder that contains GRAB data')
 
     parser.add_argument('--smplx-path',
-                        required=True,
+                        # required=True,
+                        default='/ps/project/grab/body_models/models',
                         type=str,
                         help='The path to the folder containing SMPL-X model downloaded from the website')
 
     parser.add_argument('--dataset-dir',
-                        required=True,
+                        # required=True,
+                        default='/is/ps3/otaheri/GRIP/datasets/processed/V05_multi_both_12_with_ids_arm_ICCV',
+                        # default='/is/ps3/otaheri/GRIP/datasets/processed/V05_multi_both_06_with_ids',
                         type=str,
                         help='The path to the directory where the dataset is processed and stored')
     
@@ -2239,6 +2222,9 @@ def inference():
                         help='The type of output to generate. Options: mesh, params, html')
 
     parser.add_argument('--expr-id',
+                        # default='V00_01',
+                        # default='V14_latent_consistency_02_np_bug',
+                        # default='V14_latent_consistency_07_future_4',
                         type=str,
                         help='Training ID')
 
@@ -2252,26 +2238,26 @@ def inference():
         cfg = OmegaConf.load(cfg_path)
         cfg.best_model = f'{cdir}/../snapshots/cnet.pt'
         cfg.best_model_ref = f'{cdir}/../snapshots/rnet.pt'
-        expr_ID = 'cnet_orig'
-        cfg.expr_ID = expr_ID
     else:
         expr_ID = cmd_args.expr_id
         work_dir = cmd_args.work_dir
         cfg_path = os.path.join(work_dir,f'{expr_ID}/{expr_ID}.yaml')
         cfg = OmegaConf.load(cfg_path)
 
+    # cfg.datasets.dataset_dir = os.path.join(cmd_args.grab_path,'GNet_data')
     cfg.datasets.grab_path = cmd_args.grab_path
     cfg.body_model.model_path = cmd_args.smplx_path
 
 
     cfg.output_folder = cmd_args.work_dir
-    cfg.work_dir = os.path.join(cfg.output_folder, expr_ID)
+    cfg.work_dir = os.path.join(cfg.output_folder, cfg.expr_ID)
     cfg.results_base_dir = os.path.join(cfg.work_dir, f'{cfg.expr_ID}_results')
 
 
     cfg.batch_size = 1
     cfg.num_gpus = 1
     cfg.cuda_id = 0
+    # cfg.datasets.dataset_dir = '/is/ps3/otaheri/GRIP/datasets/processed/V05_multi_both_12_with_ids_arm_ICCV'
     cfg.datasets.dataset_dir = cmd_args.dataset_dir
 
     tester = Trainer(cfg=cfg, inference=True)

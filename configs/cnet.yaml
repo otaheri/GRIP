@@ -47,6 +47,12 @@ network:
     dec_in: 1890
     out_frames: 1
     drop_out: 0.3
+  arm_net:
+    n_neurons: 2048
+    dec_in: 1162
+    out_frames: 6
+    drop_out: 0.3
+    embed_active: ll
   early_stopping:
     monitor: val_loss
     min_delta: 0.0

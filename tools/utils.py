@@ -19,7 +19,7 @@ import logging
 from copy import copy
 
 import torch.nn.functional as F
-# import pytorch3d.transforms as t3d
+import pytorch3d.transforms as t3d
 # from pytorch3d.structures import Meshes, Pointclouds
 # from pytorch3d.loss.point_mesh_distance import point_face_distance, face_point_distance
 
