@@ -18,7 +18,6 @@ import re
 import shutil
 import sys
 
-from zmq import device
 sys.path.append('.')
 sys.path.append('..')
 import json
@@ -222,8 +221,6 @@ class Trainer:
                 self.logger('Restored hnet_ref trained model from %s' % cfg.best_model_ref)
                 epoch_hnet_ref = int(cfg.best_model_ref.split('/')[-1].split('_')[0][2:])
 
-            # self.epochs_completed = max(epoch_hnet, epoch_hnet_ref)
-
         self.bps_torch = bps_torch()
         self.sig = nn.Sigmoid()
 
@@ -324,9 +321,7 @@ class Trainer:
         self.data_info[ds_name]['frame_names'] = ds_test.frame_names
         self.data_info[ds_name]['frame_sbjs'] = ds_test.frame_sbjs
         self.data_info[ds_name]['frame_objs'] = ds_test.frame_objs
-        # self.data_info['body_vtmp'] = ds_test.sbj_vtemp
-        # self.data_info['body_betas'] = ds_test.sbj_betas
-        # self.data_info['obj_verts'] = ds_test.obj_verts
+
         self.data_info['obj_info'] = ds_test.obj_info
         self.data_info['sbj_info'] = ds_test.sbj_info
         self.ds_test = build_dataloader(ds_test, split='test', cfg=self.cfg.datasets, batch_size=self.cfg.datasets.batch_size_test)
@@ -379,8 +374,6 @@ class Trainer:
     def forward(self, x):
 
         ##############################################
-        # batch = {k:v.clone() for k,v in x.items()}
-        # x     = {k:v[:,-1].clone() for k,v in x.items()}
 
         i = 1 # current frame
         vox_threshold = 0.005
@@ -430,7 +423,6 @@ class Trainer:
         enc_x = torch.cat([v.reshape(bs, -1).to(self.device) for v in enc_x.values()], dim=1)
 
         net_results = self.network(enc_x)
-        # rh_pose = self.network(enc_x)
         h_pose = net_results['pose'].reshape(bs,nf,-1)
         int_field = net_results['int_field'].reshape(bs,nf,-1)
 
@@ -480,7 +472,6 @@ class Trainer:
         enc_x = torch.cat([v.reshape(bs, -1).to(self.device) for v in enc_x.values()], dim=1)
 
         net_results = self.network_ref(enc_x)
-        # rh_pose = self.network(enc_x)
         h_pose = net_results['pose']
         int_field = net_results['int_field']
 
@@ -598,9 +589,6 @@ class Trainer:
 
             new_batch_cont['rh2obj_gt'][females] = rh2obj_dist.clone().detach()
             new_batch_cont['lh2obj_gt'][females] = lh2obj_dist.clone().detach()
-            
-            # rh2obj_closest = rh2obj['closest'].reshape(-1, 778, 3)
-            # lh2obj_closest = lh2obj['closest'].reshape(-1, 778, 3)
 
             rh2obj_closest_ids = rh2obj['closest_ids']
             lh2obj_closest_ids = lh2obj['closest_ids']
@@ -636,9 +624,6 @@ class Trainer:
 
             new_batch_cont['rh2obj_gt'][males] = rh2obj_dist.clone().detach()
             new_batch_cont['lh2obj_gt'][males] = lh2obj_dist.clone().detach()
-
-            # rh2obj_closest = rh2obj['closest'].reshape(-1, 778, 3)
-            # lh2obj_closest = lh2obj['closest'].reshape(-1, 778, 3)
 
             rh2obj_closest_ids = rh2obj['closest_ids']
             lh2obj_closest_ids = lh2obj['closest_ids']
@@ -748,7 +733,6 @@ class Trainer:
                 batch = {k: batch[k].to(self.device) for k in batch.keys()}
 
                 self.optimizer.zero_grad()
-                # torch.autograd.set_detect_anomaly(True)
                 
                 output = self.forward(batch)
 
@@ -761,7 +745,6 @@ class Trainer:
 
                     self.optimizer.zero_grad()
 
-                    # new_batch_cont = self.prepare_data(batch)
                     output_ref = self.forward_ref(new_batch)
                     output_ref_p = self.forward_ref(new_batch_p)
 
@@ -829,14 +812,10 @@ class Trainer:
             f_verts_gt = f_output_gt.vertices
             f_joints_gt = f_output_gt.joints
 
-            s = time.time()
             f_params = {k: v[females].clone().detach() for k, v in bparams.items()}
             f_output = self.female_model(**f_params)
             f_verts = f_output.vertices
             f_joints = f_output.joints
-            e = time.time()
-            # print('time for smplx female forward pass: ', e-s)
-
 
             if self.fit_ref:
 
@@ -866,14 +845,10 @@ class Trainer:
             m_verts_gt = m_output_gt.vertices
             m_joints_gt = m_output_gt.joints
 
-
-            s = time.time()
             m_params = {k: v[males].clone() for k, v in bparams.items()}
             m_output = self.male_model(**m_params)
             m_verts = m_output.vertices
             m_joints = m_output.joints
-            e = time.time()
-            # print('time for smplx male forward pass: ', e-s)
 
             if self.fit_ref:
 
@@ -908,7 +883,6 @@ class Trainer:
 
 
         rh2obj_gt = batch['rh2obj_gt'][:,cur_id:cur_id+T].norm(dim=-1).reshape(B*T, -1, 1)
-        # rh2obj_w = torch.exp(-self.use_exp*rh2obj_gt)
         rh2obj_w = torch.ones_like(rh2obj_gt)
 
         int_fields = results['int_field'].reshape(B*T, -1)
@@ -922,10 +896,8 @@ class Trainer:
             losses_w['rh2obj_inf'] = self.vertex_loss_weight*losses['rh2obj_inf']
 
         lh2obj_gt = batch['lh2obj_gt'][:,cur_id:cur_id+T].norm(dim=-1).reshape(B*T, -1, 1)
-        # lh2obj_w = torch.exp(-self.use_exp*lh2obj_gt)
         lh2obj_w = torch.ones_like(lh2obj_gt)
 
-        # int_field = results['int_field'][:,99:].reshape(lh2obj_gt.shape)
         int_field = int_fields[:,99:].reshape(lh2obj_gt.shape)
 
 
@@ -942,7 +914,6 @@ class Trainer:
 
         lh2obj_gt = batch['lh2obj_gt'][:,cur_id:cur_id+T].norm(dim=-1).reshape(B*T,-1, 1)
         lh2obj_w = torch.exp(-self.use_exp*lh2obj_gt)
-
 
         # right hand vertex loss
         rh_ids = self.rhand_idx
@@ -989,23 +960,15 @@ class Trainer:
             losses['lh2obj'] = 0
             obj_verts_gt = batch['verts_obj'][:,cur_id:cur_id+T].reshape(B*T,-1, 3)
             if FN>0:
-                # rh2obj_gt = self.bps_torch.encode(x = batch['verts_obj'][:,-1][females],
-                #                                 feature_type=[bps_type],
-                #                                 custom_basis=f_verts_gt[:,self.rhand_idx])[bps_type]
 
-                s = time.time()
                 rh2obj = self.bps_torch.encode(x = obj_verts_gt[females],
                                                 feature_type=[bps_type],
                                                 custom_basis=f_verts[:,self.rhand_idx])[bps_type]
-                                                # custom_basis=f_verts[:,self.verts_ids[self.rh_ids_sampled]])[bps_type]
                 
                 lh2obj = self.bps_torch.encode(x = obj_verts_gt[females],
                                                 feature_type=[bps_type],
                                                 custom_basis=f_verts[:,self.lhand_idx])[bps_type]
-                                                # custom_basis=f_verts[:,self.verts_ids[self.lh_ids_sampled]])[bps_type]
-                e = time.time()
-                t_f = e-s
-                # print('time for female bps: ', t_f)
+
                 
                 losses['rh2obj'] += self.LossL1(torch.exp(-self.use_exp*rh2obj[:, self.rh_ids_sampled1]),torch.exp(-self.use_exp*rh2obj_gt[females][...,0]))
                 # losses['rh2obj'] += self.LossL1(torch.exp(-self.use_exp*rh2obj),torch.exp(-self.use_exp*rh2obj_gt[females][...,0]))
@@ -1031,22 +994,15 @@ class Trainer:
                     new_batch_p['rh2obj'][females] = rh2obj_p.clone().detach()
             
             if MN>0:
-                # rh2obj_gt = self.bps_torch.encode(x = batch['verts_obj'][:,-1][males],
-                #                                 feature_type=[bps_type],
-                #                                 custom_basis=m_verts_gt[:,self.rhand_idx])[bps_type]
-                s = time.time()
+
                 rh2obj = self.bps_torch.encode(x = obj_verts_gt[males],
                                 feature_type=[bps_type],
                                 custom_basis=m_verts[:,self.rhand_idx])[bps_type]
-                                # custom_basis=m_verts[:,self.verts_ids[self.rh_ids_sampled]])[bps_type]
                 
                 lh2obj = self.bps_torch.encode(x = obj_verts_gt[males],
                                                 feature_type=[bps_type],
                                                 custom_basis=m_verts[:,self.lhand_idx])[bps_type]
-                                                # custom_basis=m_verts[:,self.verts_ids[self.lh_ids_sampled]])[bps_type]
-                e = time.time()
-                t_m = e-s
-                # print('time for male bps: ', t_m)
+
                 
                 losses['rh2obj'] += self.LossL1(torch.exp(-self.use_exp*rh2obj[:, self.rh_ids_sampled1]),torch.exp(-self.use_exp*rh2obj_gt[males][...,0]))
                 # losses['rh2obj'] += self.LossL1(torch.exp(-self.use_exp*rh2obj),torch.exp(-self.use_exp*rh2obj_gt[males][...,0]))
@@ -1090,11 +1046,9 @@ class Trainer:
 
             loss_v2v = torch.cat(loss_v2v, dim=0).mean(dim=-1).sum()
 
-        # loss_total = torch.stack(list(losses.values())).sum()
         loss_total = torch.stack(list(losses_w.values())).sum()
         losses['loss_total'] = loss_total
         losses['loss_v2v'] = losses['lh_vertices'] + losses['rh_vertices']
-        # losses['loss_w'] = losses_w
 
         if eval_test:
             losses['loss_v2v'] = loss_v2v
@@ -1187,107 +1141,6 @@ class Trainer:
                 losses['lh_contact_const'] = 0
 
         return loss_total, losses, new_batch, new_batch_p
-
-    def get_loss_(self, batch, batch_idx, results):
-
-        cur_id = 1
-
-        bparams = results['body_params']
-
-        new_batch = {k:v.clone().detach() for k,v in bparams.items()}
-        new_batch['betas'] = batch['betas'][:,cur_id].clone()
-
-        genders = batch['gender'][:,cur_id]
-        males = genders == 1
-        females = ~males
-
-        B = batch['transl_obj'].shape[0]
-        v_template = batch['sbj_vtemp'][:,cur_id]
-
-        FN = sum(females)
-        MN = sum(males)
-
-        params_gt = parms_6D2full(batch['fullpose_rotmat'][:,cur_id],
-                                  batch['transl'][:,cur_id],
-                                  d62rot=False)
-
-        losses = {}
-        losses_w = {}
-
-        rh2obj_gt = batch['rh2obj_gt'][:,cur_id]
-
-
-        lh2obj_gt = batch['lh2obj_gt'][:,cur_id]
-
-
-        rh2obj_gt = batch['rh2obj_gt'][:,cur_id]
-        lh2obj_gt = batch['lh2obj_gt'][:,cur_id]
-
-        new_batch['lh2obj'] = torch.zeros([B, 778]).to(lh2obj_gt.device)
-        new_batch['rh2obj'] = torch.zeros([B, 778]).to(rh2obj_gt.device)
-
-        bps_type = 'dists'
-
-        if FN > 0:
-            
-            self.female_model.v_template = v_template[females].clone()
-
-            f_params_gt = {k: v[females].clone().detach() for k, v in params_gt.items()}
-            f_output_gt = self.female_model(**f_params_gt)
-            f_verts_gt = f_output_gt.vertices
-
-            f_params = {k: v[females].clone().detach() for k, v in bparams.items()}
-            f_output = self.female_model(**f_params)
-            f_verts = f_output.vertices
-
-            new_batch['f_verts_gt'] = f_verts_gt
-            new_batch['f_verts'] = f_verts.clone().detach()
-            new_batch['f_params_gt'] = f_params_gt
-
-            rh2obj = self.bps_torch.encode(x = batch['verts_obj'][:,cur_id][females],
-                                            feature_type=[bps_type],
-                                            custom_basis=f_verts[:,self.rhand_idx])[bps_type]
-                                            # custom_basis=f_verts[:,self.verts_ids[self.rh_ids_sampled]])[bps_type]
-            
-            lh2obj = self.bps_torch.encode(x = batch['verts_obj'][:,cur_id][females],
-                                            feature_type=[bps_type],
-                                            custom_basis=f_verts[:,self.lhand_idx])[bps_type]
-            
-            new_batch['lh2obj'][females] = lh2obj.clone().detach()
-            new_batch['rh2obj'][females] = rh2obj.clone().detach()
-
-        if MN > 0:
-            self.male_model.v_template = v_template[males].clone()
-
-            m_params_gt = {k: v[males].clone() for k, v in params_gt.items()}
-            m_output_gt = self.male_model(**m_params_gt)
-            m_verts_gt = m_output_gt.vertices
-
-            m_params = {k: v[males].clone() for k, v in bparams.items()}
-            m_output = self.male_model(**m_params)
-            m_verts = m_output.vertices
-
-            new_batch['m_verts_gt'] = m_verts_gt
-            new_batch['m_verts'] = m_verts.clone().detach()
-            new_batch['m_params_gt'] = m_params_gt
-
-            rh2obj = self.bps_torch.encode(x = batch['verts_obj'][:, cur_id][males],
-                                            feature_type=[bps_type],
-                                            custom_basis=m_verts[:,self.rhand_idx])[bps_type]
-
-            lh2obj = self.bps_torch.encode(x = batch['verts_obj'][:, cur_id][males],
-                                            feature_type=[bps_type],
-                                            custom_basis=m_verts[:,self.lhand_idx])[bps_type]
-            
-            new_batch['lh2obj'][males] = lh2obj.clone().detach()
-            new_batch['rh2obj'][males] = rh2obj.clone().detach()
-
-
-        loss_total = 0
-        losses['loss_total'] = 0
-        losses['loss_v2v'] = 0
-
-        return loss_total, losses, new_batch
 
     def get_loss_ref(self, batch, new_batch, batch_idx, results, eval_test=False):
 
@@ -1487,7 +1340,6 @@ class Trainer:
         self.pose_loss_weight_ann   = WeightAnneal(start_w=self.pose_loss_weight, end_w=0, start_batch=0, end_batch=2)
 
         # self.contact_loss_weight_ann = WeightAnneal(start_w=self.contact_loss_weight/4, end_w=self.contact_loss_weight, start_batch=0, end_batch=4)
-
         # self.rh_vertex_loss_weight_ann = WeightAnneal(start_w=self.rh_vertex_loss_weight/10, end_w=self.rh_vertex_loss_weight, start_batch=4, end_batch=10)
         # self.feet_vertex_loss_weight_ann = WeightAnneal(start_w=self.feet_vertex_loss_weight/10, end_w=self.feet_vertex_loss_weight, start_batch=4, end_batch=10)
 
@@ -1635,15 +1487,12 @@ class Trainer:
 
     def inference_generate(self):
 
-        # torch.set_grad_enabled(False)
         self.network.eval()
         self.network_ref.eval()
         device = self.device
 
         self.fit_hnet = True
         self.fit_ref = True
-
-        # OmegaConf.save(self.cfg, f'configs/cfg_{self.cfg.expr_ID}.yaml')
 
         ds_name = 'test'
         data = self.ds_test
@@ -1695,7 +1544,6 @@ class Trainer:
                 past_seq_name = seq_name_
 
             if prev_batch is None or past_seq_name != seq_name_:
-                # prev_batch = {k:v[:,curr_i-1].clone() for k , v in batch.items()}
                 prev_batch = {'fullpose_rotmat':batch['fullpose_rotmat'].clone()}
                         
             if (past_seq_name != seq_name_) and ((past_sbj == curr_sbj) or (past_obj == curr_obj)):
@@ -1727,15 +1575,6 @@ class Trainer:
             ### object model
 
             obj_name = self.data_info[ds_name]['frame_names'][batch['idx'][:,curr_i].to(torch.long)].split('/')[-1].split('_')[0]
-
-            ##### FOR GRASP TRANSFER
-            # obj_names = ['toothpaste', 'apple', 'mug', 'camera', 'binoculars']
-            # # obj_names_replacement = ['cylindermedium', 'spheremedium', 'cylindermedium', 'cubemedium', 'cubesmall']
-            # obj_names_replacement = ['flashlight', 'duck', 'stanfordbunny', 'elephant', 'cubemedium']
-
-
-            # if obj_name in obj_names:
-            #     obj_name = obj_names_replacement[obj_names.index(obj_name)]
             
             #######################
 
@@ -1774,8 +1613,6 @@ class Trainer:
             bparams = net_output['body_params']
             bparams_ref = net_output_ref['body_params']
 
-            # prev_batch = {'fullpose_rotmat':bparams_ref['fullpose_rotmat'].reshape(1,T,-1,3,3).clone()}
-
             ##################################
             ##################################
 
@@ -1792,15 +1629,12 @@ class Trainer:
 
             params_h = {k: v.clone() for k, v in params_gt.items() if not 'hand' in k }
 
-
-            # sbj_m.v_template = batch['sbj_vtemp'][:,curr_i].clone().to(sbj_m.v_template.device)
             output_gt = sbj_m(**params_gt)
             verts_gt = output_gt.vertices
 
             output_h = sbj_m(**params_h)
             verts_h = output_h.vertices
             
-
             # for i in range(1,T):
             flat = np.array([199,214,245])/255.
             ref = np.array([245,210,210])/255.
@@ -1865,8 +1699,6 @@ class Trainer:
                     sp_anim.scene.link_canvas_events(*all_canvs[3:])
                     sp_anim.save_animation(html_path)
                     print(f'Saving the animation to: ', html_path)
-
-                    # sp_anim = sp_animation()
                     sp_anim = sp_animation(canvs=canvs,grid=grid, bg_color=bg_color)
 
 
@@ -1878,7 +1710,6 @@ class Trainer:
             
     def inference_generate_params(self):
 
-        # torch.set_grad_enabled(False)
         self.network.eval()
         self.network_ref.eval()
         device = self.device
@@ -1938,15 +1769,9 @@ class Trainer:
             params_path = os.path.join(results_path, seq_name+'.pt')
 
             if prev_batch is None or past_seq_name != seq_name_:
-                # prev_batch = {k:v[:,curr_i-1].clone() for k , v in batch.items()}
                 prev_batch = {'fullpose_rotmat':batch['fullpose_rotmat'].clone()}
-            
-            # batch['fullpose_rotmat'][:,curr_i-1] = prev_batch['fullpose_rotmat'][:,-1].clone()
-
 
             batch = {k:v.to(self.device) for k,v in batch.items()}
-            # batch['verts'][:,0] = prev_batch['verts'].clone()
-            # batch['fullpose_rotmat'][:,0] = prev_batch['fullpose_rotmat'].clone()
 
             gender = batch['gender'][:,curr_i].data
             if gender == 2:
@@ -1958,7 +1783,6 @@ class Trainer:
             save_data['sbj_id'] = curr_sbj
             save_data['obj_id'] = curr_obj
             save_data['gender'] = gender
-            # continue
 
             ### object model
 
@@ -1967,13 +1791,9 @@ class Trainer:
 
 
             obj_mesh = Mesh(filename=obj_path)
-            # obj_mesh_tri = trimesh.load(obj_path).simplify_quadratic_decimation(1000)
-            # obj_mesh = Mesh(v=obj_mesh_tri.vertices, f=obj_mesh_tri.faces)
 
             obj_verts = torch.from_numpy(obj_mesh.v)
             save_data['obj_verts'] = obj_verts
-
-            # obj_m = ObjectModel(v_template=obj_verts).to(device)
 
             motion_obj = {
                 'transl': batch['transl_obj'][:,curr_i:curr_i+T].reshape(-1,3),
@@ -1981,12 +1801,6 @@ class Trainer:
             }
 
             save_data['obj_params'].append(motion_obj)
-
-            # obj_verts = obj_m(**motion_obj).vertices.detach()
-
-            # makepath(html_path, isfile=True)
-
-            # grnd_mesh, cage, axis_l = get_ground()
 
             print(f'{seq_name} -- ')
             ##########################################
@@ -2004,18 +1818,11 @@ class Trainer:
             save_data['bparams'].append(bparams)
             save_data['bparams_ref'].append(bparams_ref)
 
-            # prev_batch = {'fullpose_rotmat':bparams_ref['fullpose_rotmat'].reshape(1,T,-1,3,3).clone()}
-
             ##################################
             ##################################
 
             sbj_m.v_template = batch['sbj_vtemp'][:,curr_i:curr_i+T].clone().reshape(T,-1,3).to(sbj_m.v_template.device)
-            save_data['sbj_vtemp'] = sbj_m.v_template.clone()
-            # output = sbj_m(**bparams)
-            # verts_init = output.vertices
-
-            # output_ref = sbj_m(**bparams_ref)
-            # verts_ref = output_ref.vertices                                                                            
+            save_data['sbj_vtemp'] = sbj_m.v_template.clone()                                                                          
 
             params_gt = parms_6D2full(batch['fullpose_rotmat'][:,curr_i:curr_i+T].clone().reshape(T,-1,3,3),
                                   batch['transl'][:,curr_i:curr_i+T].clone().reshape(T,3),
@@ -2036,7 +1843,6 @@ class Trainer:
         
     def inference_generate_mesh(self):
 
-        # torch.set_grad_enabled(False)
         self.network.eval()
         self.network_ref.eval()
         device = self.device
@@ -2054,7 +1860,6 @@ class Trainer:
             counter += 1
 
             seq_name = 's' + self.data_info[ds_name]['frame_names'][batch['idx'][:,curr_i].to(torch.long)].split('/s')[-1].replace('/', '_')
-            # seq_name_ = seq_name[:np.where([not i.isdigit() for i in seq_name])[0][-1]]
             fid = int(seq_name.split('_')[-1])
             seq_name_ = '_'.join(seq_name.split('_')[:-1])
             curr_sbj = seq_name_.split('_')[0]
@@ -2062,8 +1867,6 @@ class Trainer:
             results_path = os.path.join(os.path.dirname(self.cfg.results_base_dir) + '/saved_meshes_release', seq_name_)
 
             batch = {k:v.to(self.device) for k,v in batch.items()}
-            # batch['verts'][:,0] = prev_batch['verts'].clone()
-            # batch['fullpose_rotmat'][:,0] = prev_batch['fullpose_rotmat'].clone()
 
             gender = batch['gender'][:,curr_i].data
             if gender == 2:
@@ -2080,9 +1883,6 @@ class Trainer:
             if not curr_obj == prev_obj:
                 obj_mesh = Mesh(filename=obj_path)
                 prev_obj = curr_obj
-
-                # obj_mesh_tri = trimesh.load(obj_path).simplify_quadratic_decimation(1000)
-                # obj_mesh = Mesh(v=obj_mesh_tri.vertices, f=obj_mesh_tri.faces)
 
                 obj_verts = torch.from_numpy(obj_mesh.v)
 
@@ -2192,27 +1992,22 @@ def inference():
     parser = argparse.ArgumentParser(description='CNet-Inference')
 
     parser.add_argument('--work-dir',
-                        # required=True,
-                        default='/is/ps3/otaheri/GRIP/results/trained_models',
+                        required=True,
                         type=str,
                         help='The path to the folder to save results')
 
     parser.add_argument('--grab-path',
-                        # required=True,
-                        default='/ps/project/grab/cvpr21/GRAB',
+                        required=True,
                         type=str,
                         help='The path to the folder that contains GRAB data')
 
     parser.add_argument('--smplx-path',
-                        # required=True,
-                        default='/ps/project/grab/body_models/models',
+                        required=True,
                         type=str,
                         help='The path to the folder containing SMPL-X model downloaded from the website')
 
     parser.add_argument('--dataset-dir',
-                        # required=True,
-                        default='/is/ps3/otaheri/GRIP/datasets/processed/V05_multi_both_12_with_ids_arm_ICCV',
-                        # default='/is/ps3/otaheri/GRIP/datasets/processed/V05_multi_both_06_with_ids',
+                        required=True,
                         type=str,
                         help='The path to the directory where the dataset is processed and stored')
     
@@ -2222,9 +2017,6 @@ def inference():
                         help='The type of output to generate. Options: mesh, params, html')
 
     parser.add_argument('--expr-id',
-                        # default='V00_01',
-                        # default='V14_latent_consistency_02_np_bug',
-                        # default='V14_latent_consistency_07_future_4',
                         type=str,
                         help='Training ID')
 
@@ -2238,26 +2030,26 @@ def inference():
         cfg = OmegaConf.load(cfg_path)
         cfg.best_model = f'{cdir}/../snapshots/cnet.pt'
         cfg.best_model_ref = f'{cdir}/../snapshots/rnet.pt'
+        expr_ID = 'cnet_orig'
+        cfg.expr_ID = expr_ID
     else:
         expr_ID = cmd_args.expr_id
         work_dir = cmd_args.work_dir
         cfg_path = os.path.join(work_dir,f'{expr_ID}/{expr_ID}.yaml')
         cfg = OmegaConf.load(cfg_path)
 
-    # cfg.datasets.dataset_dir = os.path.join(cmd_args.grab_path,'GNet_data')
     cfg.datasets.grab_path = cmd_args.grab_path
     cfg.body_model.model_path = cmd_args.smplx_path
 
 
     cfg.output_folder = cmd_args.work_dir
-    cfg.work_dir = os.path.join(cfg.output_folder, cfg.expr_ID)
-    cfg.results_base_dir = os.path.join(cfg.work_dir, f'{cfg.expr_ID}_results')
+    cfg.work_dir = os.path.join(cfg.output_folder, expr_ID)
+    cfg.results_base_dir = os.path.join(cfg.work_dir, f'{expr_ID}_results')
 
 
     cfg.batch_size = 1
     cfg.num_gpus = 1
     cfg.cuda_id = 0
-    # cfg.datasets.dataset_dir = '/is/ps3/otaheri/GRIP/datasets/processed/V05_multi_both_12_with_ids_arm_ICCV'
     cfg.datasets.dataset_dir = cmd_args.dataset_dir
 
     tester = Trainer(cfg=cfg, inference=True)
