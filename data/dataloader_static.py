@@ -14,10 +14,6 @@
 
 import sys
 
-sys.path.append('/is/ps2/otaheri/code_repos/GRIP_adobe/project/')
-sys.path.append('.')
-sys.path.append('..')
-
 import os
 import glob
 import numpy as np
