@@ -12,9 +12,7 @@
 # Contact: ps-license@tuebingen.mpg.de
 #
 import sys, os
-sys.path.append('/is/ps2/otaheri/code_repos/GRIP_adobe/project/')
-sys.path.append('.')
-sys.path.append('..')
+
 import numpy as np
 import torch
 
